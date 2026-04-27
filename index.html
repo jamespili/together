@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>集合点</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system, sans-serif;}
+body{background:#f4f7fa; padding: 12px;}
+
+.app{
+  max-width:420px;
+  margin:auto;
+  min-height: 100vh;
+  padding-bottom: 30px;
+}
+
+/* 地图外观优化：增加圆角、投影和边框 */
+.map-wrap{
+  position:relative;
+  border-radius: 28px;
+  overflow: hidden; /* 确保地图圆角生效 */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  border: 4px solid #fff;
+  background: #fff;
+}
+
+#map{ height:280px; width: 100%; }
+
+.top-overlay{
+  position:absolute;
+  top:0; left:0; right:0; height:100px;
+  background:linear-gradient(to bottom,rgba(255,255,255,0.8),rgba(255,255,255,0));
+  z-index:1000; padding:20px;
+  pointer-events: none; /* 防止遮罩拦截地图操作 */
+}
+
+.title h1{ font-size:22px; font-weight:800; color: #1a1a1a; }
+
+.place-card{
+  position:absolute; bottom:12px; left:12px; right:12px;
+  background:rgba(255,255,255,0.95);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-radius:18px; padding:12px 16px;
+  display:flex; justify-content:space-between; align-items:center;
+  box-shadow:0 4px 15px rgba(0,0,0,0.08); z-index:1000;
+}
+
+/* 卡片样式 */
+.card{
+  margin:16px 0;
+  background:#fff;
+  border-radius:24px; padding:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.05);
+}
+
+.count-header{ display:flex; justify-content:space-between; align-items:center; color:#666; margin-bottom: 15px;}
+
+.time-inputs input {
+  width: 55px; border: 1.5px solid #eee; border-radius: 10px;
+  padding: 6px; text-align: center; font-size: 16px; outline: none;
+}
+.time-inputs input:focus { border-color: #2563eb; }
+
+.time{
+  text-align:center; font-size:52px; font-weight:800;
+  color:#2d2d2d; margin: 10px 0; letter-spacing: -1px;
+}
+.time.active { color:#ff3b30; }
+
+.row{ display:flex; justify-content:space-between; text-align:center; }
+.big{ font-size:24px; font-weight:700; color: #1a1a1a; margin-top:4px;}
+
+/* 按钮 */
+.btn{
+  margin:10px 0; padding:18px; border:none; border-radius:20px;
+  width: 100%; font-size:16px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primary{
+  background:linear-gradient(135deg,#3b82f6,#2563eb);
+  color:#fff; box-shadow:0 8px 20px rgba(37,99,235,0.25);
+}
+.primary:active { transform: scale(0.98); }
+
+.start-timer-btn {
+  background: #34c759; color: white; padding: 12px;
+  border-radius: 14px; border: none; width: 100%;
+  font-size: 16px; margin-top: 10px; font-weight: 700; cursor: pointer;
+}
+
+.secondary{
+  background:#fff; border:1px solid #e0e0e0; color:#666;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="top-overlay">
+      <div class="title">
+        <h1>集合助手</h1>
+      </div>
+    </div>
+    <div class="place-card">
+      <div>
+        <div style="font-weight:700; font-size: 15px;">集合地点</div>
+        <div style="font-size:12px;color:#888;" id="place">点击右侧按钮记录当前位置</div>
+      </div>
+      <button onclick="setPoint()" style="background:#f0f7ff; border:none; color:#2563eb; padding: 8px 12px; border-radius: 12px; font-weight: 700; cursor:pointer;">📍 记录</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="count-header">
+      <span style="font-weight:600;">设定倒计时</span>
+      <div class="time-inputs">
+        <input type="number" id="in-h" value="0" min="0"> 时
+        <input type="number" id="in-m" value="15" min="0" max="59"> 分
+      </div>
+    </div>
+    
+    <div class="time" id="cd">00:15:00</div>
+    
+    <button class="start-timer-btn" onclick="startTimer()">▶ 开启倒计时</button>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <div style="color:#888; font-size:13px; font-weight: 500;">距离集合点</div>
+        <div class="big" id="dist">-- m</div>
+      </div>
+      <div>
+        <div style="color:#888; font-size:13px; font-weight: 500;">预计步行</div>
+        <div class="big" id="eta">-- 分</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn primary" onclick="nav()">导航回集合点</button>
+  <button class="btn secondary" onclick="setPoint()">重新记录集合位置</button>
+</div>
+
+<script>
+let map, userMarker, targetMarker;
+let targetLat = null, targetLng = null;
+let targetTime = null;
+
+// 初始化
+map = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.9042, 116.4074], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// 实时定位
+navigator.geolocation.watchPosition(pos => {
+  let lat = pos.coords.latitude;
+  let lng = pos.coords.longitude;
+  if (!userMarker) {
+    userMarker = L.circleMarker([lat, lng], { radius: 7, color: "#fff", weight: 3, fillColor: "#007aff", fillOpacity: 1 }).addTo(map);
+    map.setView([lat, lng]);
+  } else {
+    userMarker.setLatLng([lat, lng]);
+  }
+  if (targetLat) {
+    let d = getDistance(lat, lng, targetLat, targetLng);
+    document.getElementById("dist").innerText = Math.floor(d) + " m";
+    document.getElementById("eta").innerText = Math.max(1, Math.floor(d / 80)) + " 分";
+  }
+}, null, { enableHighAccuracy: true });
+
+// 记录位置
+function setPoint() {
+  if (!userMarker) return alert("定位未就绪");
+  let pos = userMarker.getLatLng();
+  targetLat = pos.lat;
+  targetLng = pos.lng;
+  if (targetMarker) map.removeLayer(targetMarker);
+  targetMarker = L.circleMarker([targetLat, targetLng], { radius: 9, color: "#fff", weight: 3, fillColor: "#ff3b30", fillOpacity: 1 }).addTo(map);
+  document.getElementById("place").innerText = "位置已锁定";
+}
+
+// 开启倒计时
+function startTimer() {
+  const h = parseInt(document.getElementById("in-h").value) || 0;
+  const m = parseInt(document.getElementById("in-m").value) || 0;
+  if (h === 0 && m === 0) return alert("请设置时间");
+
+  targetTime = Date.now() + (h * 3600 + m * 60) * 1000;
+  document.getElementById("cd").classList.add("active");
+}
+
+// 渲染循环
+setInterval(() => {
+  if (!targetTime) {
+    const h = String(document.getElementById("in-h").value).padStart(2, '0');
+    const m = String(document.getElementById("in-m").value).padStart(2, '0');
+    document.getElementById("cd").innerText = `${h}:${m}:00`;
+    return;
+  }
+
+  let diff = targetTime - Date.now();
+  if (diff <= 0) {
+    document.getElementById("cd").innerText = "00:00:00";
+    document.getElementById("cd").classList.remove("active");
+    return;
+  }
+
+  let hh = Math.floor(diff / 3600000);
+  let mm = Math.floor((diff % 3600000) / 60000);
+  let ss = Math.floor((diff % 60000) / 1000);
+
+  document.getElementById("cd").innerText = 
+    String(hh).padStart(2, '0') + ":" + 
+    String(mm).padStart(2, '0') + ":" + 
+    String(ss).padStart(2, '0');
+}, 1000);
+
+function getDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  let dLat = (lat2 - lat1) * Math.PI / 180;
+  let dLng = (lng2 - lng1) * Math.PI / 180;
+  let a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// 导航
+function nav() {
+  if (!targetLat) return alert("请先记录集合点");
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${targetLat},${targetLng}`);
+}
+</script>
+</body>
+</html>
