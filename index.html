@@ -5,61 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>集合点</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system, sans-serif;}
 body{background:#f4f7fa; padding: 12px;}
 
-.app{
-  max-width:420px;
-  margin:auto;
-  min-height: 100vh;
-  padding-bottom: 30px;
+.app{ max-width:420px; margin:auto; padding-bottom: 30px;}
+
+/* 顶部的定位状态面板 */
+.status-panel{
+  background:linear-gradient(135deg,#3b82f6,#2563eb);
+  color: white; border-radius: 28px; padding: 24px;
+  box-shadow: 0 8px 24px rgba(37,99,235,0.25); text-align: center;
 }
 
-/* 地图外观 */
-.map-wrap{
-  position:relative;
-  border-radius: 28px;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  border: 4px solid #fff;
-  background: #fff;
-}
-
-#map{ height:280px; width: 100%; }
-
-.top-overlay{
-  position:absolute;
-  top:0; left:0; right:0; height:100px;
-  background:linear-gradient(to bottom,rgba(255,255,255,0.8),rgba(255,255,255,0));
-  z-index:1000; padding:20px;
-  pointer-events: none;
-}
-
-.title h1{ font-size:22px; font-weight:800; color: #1a1a1a; }
-
-.place-card{
-  position:absolute; bottom:12px; left:12px; right:12px;
-  background:rgba(255,255,255,0.95);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  border-radius:18px; padding:12px 16px;
-  display:flex; justify-content:space-between; align-items:center;
-  box-shadow:0 4px 15px rgba(0,0,0,0.08); z-index:1000;
-}
+.status-panel h1 { font-size: 22px; margin-bottom: 8px; }
+.location-box { background: rgba(255,255,255,0.15); padding: 12px; border-radius: 16px; font-size: 13px; }
 
 /* 卡片样式 */
 .card{
-  margin:16px 0;
-  background:#fff;
+  margin:16px 0; background:#fff;
   border-radius:24px; padding:20px;
   box-shadow:0 10px 25px rgba(0,0,0,0.05);
 }
 
 .count-header{ display:flex; justify-content:space-between; align-items:center; color:#666; margin-bottom: 15px;}
-
 .time-inputs input {
   width: 55px; border: 1.5px solid #eee; border-radius: 10px;
   padding: 6px; text-align: center; font-size: 16px; outline: none;
@@ -74,39 +45,24 @@ body{background:#f4f7fa; padding: 12px;}
 .row{ display:flex; justify-content:space-between; text-align:center; }
 .big{ font-size:24px; font-weight:700; color: #1a1a1a; margin-top:4px;}
 
-/* 按钮区域 */
-.btn-group { display: flex; flex-direction: column; gap: 10px; }
-
+/* 按钮 */
 .btn{
-  padding:18px; border:none; border-radius:20px;
+  margin:10px 0; padding:18px; border:none; border-radius:20px;
   width: 100%; font-size:16px; font-weight: 700; cursor: pointer;
 }
+.primary{ background:#2563eb; color:#fff; box-shadow:0 8px 20px rgba(37,99,235,0.25); }
+.success{ background:#34c759; color:white; margin-top: 10px; }
+.secondary{ background:#fff; border:1px solid #e0e0e0; color:#666; }
 
-.primary{
-  background:linear-gradient(135deg,#3b82f6,#2563eb);
-  color:#fff; box-shadow:0 8px 20px rgba(37,99,235,0.25);
-}
-
-.start-timer-btn {
-  background: #34c759; color: white; padding: 12px;
-  border-radius: 14px; border: none; width: 100%;
-  font-size: 16px; margin-top: 10px; font-weight: 700; cursor: pointer;
-}
-
-.secondary{
-  background:#fff; border:1px solid #e0e0e0; color:#666;
-}
-
-/* 简单的弹窗样式 */
+/* 导航选择菜单 */
 #nav-menu {
-  display: none;
-  position: fixed; bottom: 0; left: 0; right: 0;
+  display: none; position: fixed; bottom: 0; left: 0; right: 0;
   background: #fff; border-radius: 24px 24px 0 0;
   padding: 20px; z-index: 2000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
 }
 #nav-menu button {
   width: 100%; padding: 15px; margin: 5px 0; border: none;
-  border-radius: 12px; background: #f0f2f5; font-weight: 600;
+  border-radius: 12px; background: #f0f2f5; font-weight: 600; font-size: 16px;
 }
 #overlay {
   display: none; position: fixed; top: 0; bottom: 0; left: 0; right: 0;
@@ -118,86 +74,74 @@ body{background:#f4f7fa; padding: 12px;}
 <body>
 
 <div class="app">
-  <div class="map-wrap">
-    <div id="map"></div>
-    <div class="top-overlay"><div class="title"><h1>集合助手</h1></div></div>
-    <div class="place-card">
-      <div>
-        <div style="font-weight:700; font-size: 15px;">集合地点</div>
-        <div style="font-size:12px;color:#888;" id="place">未锁定位置</div>
-      </div>
-      <button onclick="setPoint()" style="background:#f0f7ff; border:none; color:#2563eb; padding: 8px 12px; border-radius: 12px; font-weight: 700;">📍 记录</button>
-    </div>
+  <div class="status-panel">
+    <h1>集合点</h1>
+    <div class="location-box" id="loc-status">🛰️ 正在尝试获取您的位置...</div>
+    <button onclick="setPoint()" style="margin-top:15px; background:#fff; color:#2563eb; border:none; padding:8px 20px; border-radius:12px; font-weight:700;">📍 记录当前为集合点</button>
   </div>
 
   <div class="card">
     <div class="count-header">
-      <span style="font-weight:600;">设定倒计时</span>
+      <span style="font-weight:600;">设定集合时间</span>
       <div class="time-inputs">
         <input type="number" id="in-h" value="0" min="0"> 时
         <input type="number" id="in-m" value="15" min="0" max="59"> 分
       </div>
     </div>
     <div class="time" id="cd">00:15:00</div>
-    <button class="start-timer-btn" onclick="startTimer()">▶ 开启倒计时</button>
+    <button class="btn success" onclick="startTimer()">▶ 开启倒计时</button>
   </div>
 
   <div class="card">
     <div class="row">
       <div>
-        <div style="color:#888; font-size:13px;">距离</div>
+        <div style="color:#888; font-size:13px;">距离集合点</div>
         <div class="big" id="dist">-- m</div>
       </div>
       <div>
-        <div style="color:#888; font-size:13px;">步行</div>
+        <div style="color:#888; font-size:13px;">预计步行</div>
         <div class="big" id="eta">-- 分</div>
       </div>
     </div>
   </div>
 
-  <div class="btn-group">
-    <button class="btn primary" onclick="showNavMenu()">调用手机地图导航</button>
-    <button class="btn secondary" onclick="setPoint()">更新当前位置</button>
-  </div>
+  <button class="btn primary" onclick="showNavMenu()">导航回原地</button>
+  <button class="btn secondary" onclick="setPoint()">重置集合点到当前位置</button>
 </div>
 
 <div id="overlay" onclick="closeNavMenu()"></div>
 <div id="nav-menu">
-  <div style="text-align: center; font-weight: 700; margin-bottom: 10px;">选择地图应用</div>
+  <div style="text-align: center; font-weight: 700; margin-bottom: 10px;">请选择手机已安装的地图</div>
   <button onclick="openMap('amap')">高德地图</button>
+  <button onclick="openMap('baidumap')">百度地图</button>
   <button onclick="openMap('qqmap')">腾讯地图</button>
-  <button onclick="openMap('apple')">Apple 地图 / 系统默认</button>
+  <button onclick="openMap('apple')">Apple 地图 (iOS) / 系统默认</button>
   <button onclick="closeNavMenu()" style="background:none; color:#ff3b30;">取消</button>
 </div>
 
 <script>
-let map, userMarker, targetMarker;
-let targetLat = null, targetLng = null;
-let targetTime = null;
+let userLat, userLng, targetLat, targetLng, targetTime;
 
-map = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.9042, 116.4074], 15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
+// 实时获取位置逻辑 (静默运行，不显示地图图片)
 navigator.geolocation.watchPosition(pos => {
-  let lat = pos.coords.latitude; let lng = pos.coords.longitude;
-  if (!userMarker) {
-    userMarker = L.circleMarker([lat, lng], { radius: 7, color: "#fff", weight: 3, fillColor: "#007aff", fillOpacity: 1 }).addTo(map);
-    map.setView([lat, lng]);
-  } else { userMarker.setLatLng([lat, lng]); }
+  userLat = pos.coords.latitude;
+  userLng = pos.coords.longitude;
+  document.getElementById("loc-status").innerText = `✅ GPS 定位正常 (精度: ${Math.round(pos.coords.accuracy)}m)`;
+  
   if (targetLat) {
-    let d = getDistance(lat, lng, targetLat, targetLng);
+    let d = getDistance(userLat, userLng, targetLat, targetLng);
     document.getElementById("dist").innerText = Math.floor(d) + " m";
     document.getElementById("eta").innerText = Math.max(1, Math.floor(d / 80)) + " 分";
   }
-}, null, { enableHighAccuracy: true });
+}, (err) => {
+  document.getElementById("loc-status").innerText = "❌ 定位失败，请检查 GPS 是否开启";
+}, { enableHighAccuracy: true });
 
 function setPoint() {
-  if (!userMarker) return alert("定位未就绪");
-  let pos = userMarker.getLatLng();
-  targetLat = pos.lat; targetLng = pos.lng;
-  if (targetMarker) map.removeLayer(targetMarker);
-  targetMarker = L.circleMarker([targetLat, targetLng], { radius: 9, color: "#fff", weight: 3, fillColor: "#ff3b30", fillOpacity: 1 }).addTo(map);
-  document.getElementById("place").innerText = "位置已锁定";
+  if (!userLat) return alert("等待 GPS 信号...");
+  targetLat = userLat;
+  targetLng = userLng;
+  document.getElementById("loc-status").innerText = "📍 集合点位置已锁定！";
 }
 
 function startTimer() {
@@ -230,7 +174,7 @@ function getDistance(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// 导航功能
+// 导航逻辑
 function showNavMenu() {
   if (!targetLat) return alert("请先记录集合点");
   document.getElementById('nav-menu').style.display = 'block';
@@ -243,24 +187,29 @@ function closeNavMenu() {
 }
 
 function openMap(type) {
+  const lat = targetLat; const lng = targetLng;
   let url = "";
-  const lat = targetLat;
-  const lng = targetLng;
 
-  if (type === 'amap') {
-    // 高德地图 URL Scheme
-    url = `androidamap://viewReGeo?sourceApplication=meetingPoint&lat=${lat}&lon=${lng}&dev=0`;
-    // 网页备用链接
-    setTimeout(() => { window.location.href = `https://uri.amap.com/marker?position=${lng},${lat}&name=集合点`; }, 500);
-  } else if (type === 'qqmap') {
-    // 腾讯地图
-    url = `qqmap://map/geocoder?coord=${lat},${lng}&name=集合点`;
-  } else if (type === 'apple') {
-    // Apple 地图或系统通用 geo 协议
-    url = `geo:${lat},${lng}?q=${lat},${lng}(集合点)`;
+  switch(type) {
+    case 'amap': // 高德
+      url = `androidamap://viewReGeo?sourceApplication=meetingPoint&lat=${lat}&lon=${lng}&dev=0`;
+      break;
+    case 'baidumap': // 百度
+      url = `baidumap://map/marker?location=${lat},${lng}&title=集合点`;
+      break;
+    case 'qqmap': // 腾讯
+      url = `qqmap://map/geocoder?coord=${lat},${lng}&name=集合点`;
+      break;
+    case 'apple': // 苹果/通用
+      url = `geo:${lat},${lng}?q=${lat},${lng}(集合点)`;
+      break;
   }
-
+  
   window.location.href = url;
+  // 如果 2 秒后没反应，可能是没装 App，尝试网页版
+  setTimeout(() => {
+    if (type === 'amap') window.location.href = `https://uri.amap.com/marker?position=${lng},${lat}`;
+  }, 2000);
   closeNavMenu();
 }
 </script>
